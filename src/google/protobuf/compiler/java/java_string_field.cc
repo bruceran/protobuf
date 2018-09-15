@@ -79,6 +79,8 @@ void SetPrimitiveVariables(const FieldDescriptor* descriptor,
       "  if (value == null) {\n"
       "    throw new NullPointerException();\n"
       "  }\n";
+  (*variables)["null_replace"] =
+      "  if (value == null) value = \"\";\n";
   (*variables)["writeString"] =
       "com.google.protobuf.GeneratedMessage" + GeneratedCodeVersionSuffix() +
       ".writeString";
@@ -324,7 +326,7 @@ GenerateBuilderMembers(io::Printer* printer) const {
   printer->Print(variables_,
     "$deprecation$public Builder ${$set$capitalized_name$$}$(\n"
     "    java.lang.String value) {\n"
-    "$null_check$"
+    "$null_replace$"
     "  $set_has_field_bit_builder$\n"
     "  $name$_ = value;\n"
     "  $on_changed$\n"
@@ -617,7 +619,7 @@ GenerateBuilderMembers(io::Printer* printer) const {
   printer->Print(variables_,
     "$deprecation$public Builder ${$set$capitalized_name$$}$(\n"
     "    java.lang.String value) {\n"
-    "$null_check$"
+    "$null_replace$"
     "  $set_oneof_case_message$;\n"
     "  $oneof_name$_ = value;\n"
     "  $on_changed$\n"
@@ -845,7 +847,7 @@ GenerateBuilderMembers(io::Printer* printer) const {
   printer->Print(variables_,
     "$deprecation$public Builder ${$set$capitalized_name$$}$(\n"
     "    int index, java.lang.String value) {\n"
-    "$null_check$"
+    "$null_replace$"
     "  ensure$capitalized_name$IsMutable();\n"
     "  $name$_.set(index, value);\n"
     "  $on_changed$\n"
@@ -856,7 +858,7 @@ GenerateBuilderMembers(io::Printer* printer) const {
   printer->Print(variables_,
     "$deprecation$public Builder ${$add$capitalized_name$$}$(\n"
     "    java.lang.String value) {\n"
-    "$null_check$"
+    "$null_replace$"
     "  ensure$capitalized_name$IsMutable();\n"
     "  $name$_.add(value);\n"
     "  $on_changed$\n"

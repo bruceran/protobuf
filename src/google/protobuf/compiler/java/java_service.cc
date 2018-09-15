@@ -33,6 +33,7 @@
 //  Sanjay Ghemawat, Jeff Dean, and others.
 
 #include <google/protobuf/compiler/java/java_service.h>
+#include <google/protobuf/compiler/java/java_file.h>
 
 #include <google/protobuf/compiler/java/java_context.h>
 #include <google/protobuf/compiler/java/java_doc_comment.h>
@@ -40,6 +41,7 @@
 #include <google/protobuf/compiler/java/java_name_resolver.h>
 #include <google/protobuf/io/printer.h>
 #include <google/protobuf/stubs/strutil.h>
+#include <sstream>
 
 namespace google {
 namespace protobuf {
@@ -60,54 +62,9 @@ ImmutableServiceGenerator::ImmutableServiceGenerator(
 ImmutableServiceGenerator::~ImmutableServiceGenerator() {}
 
 void ImmutableServiceGenerator::Generate(io::Printer* printer) {
-  bool is_own_file = IsOwnFile(descriptor_, /* immutable = */ true);
-  WriteServiceDocComment(printer, descriptor_);
-  MaybePrintGeneratedAnnotation(context_, printer, descriptor_,
-                                /* immutable = */ true);
-  printer->Print(
-    "public $static$ abstract class $classname$\n"
-    "    implements com.google.protobuf.Service {\n",
-    "static", is_own_file ? "" : "static",
-    "classname", descriptor_->name());
-  printer->Indent();
-
-  printer->Print(
-    "protected $classname$() {}\n\n",
-    "classname", descriptor_->name());
 
   GenerateInterface(printer);
 
-  GenerateNewReflectiveServiceMethod(printer);
-  GenerateNewReflectiveBlockingServiceMethod(printer);
-
-  GenerateAbstractMethods(printer);
-
-  // Generate getDescriptor() and getDescriptorForType().
-  printer->Print(
-    "public static final\n"
-    "    com.google.protobuf.Descriptors.ServiceDescriptor\n"
-    "    getDescriptor() {\n"
-    "  return $file$.getDescriptor().getServices().get($index$);\n"
-    "}\n",
-    "file", name_resolver_->GetImmutableClassName(descriptor_->file()),
-    "index", SimpleItoa(descriptor_->index()));
-  GenerateGetDescriptorForType(printer);
-
-  // Generate more stuff.
-  GenerateCallMethod(printer);
-  GenerateGetPrototype(REQUEST, printer);
-  GenerateGetPrototype(RESPONSE, printer);
-  GenerateStub(printer);
-  GenerateBlockingStub(printer);
-
-  // Add an insertion point.
-  printer->Print(
-    "\n"
-    "// @@protoc_insertion_point(class_scope:$full_name$)\n",
-    "full_name", descriptor_->full_name());
-
-  printer->Outdent();
-  printer->Print("}\n\n");
 }
 
 void ImmutableServiceGenerator::GenerateGetDescriptorForType(
@@ -120,11 +77,44 @@ void ImmutableServiceGenerator::GenerateGetDescriptorForType(
 }
 
 void ImmutableServiceGenerator::GenerateInterface(io::Printer* printer) {
-  printer->Print("public interface Interface {\n");
-  printer->Indent();
-  GenerateAbstractMethods(printer);
-  printer->Outdent();
-  printer->Print("}\n\n");
+  
+      if( AsyncService == 0)
+          printer->Print("public interface $classname$ {\n","classname", descriptor_->name());
+      else
+          printer->Print("public interface $classname$Async {\n","classname", descriptor_->name());
+    
+      printer->Indent();
+  
+      std::stringstream ss;  
+      ss << descriptor_->options().unknown_fields().field(0).varint();  
+      std::string serviceId = ss.str();
+      printer->Print("\n  static final public int serviceId = $serviceId$;\n\n","serviceId", serviceId );
+ 
+      for (int i = 0; i < descriptor_->method_count(); i++) {
+          const MethodDescriptor* method = descriptor_->method(i);
+    
+          std::map<string, string> vars;
+          vars["name"] = UnderscoresToCamelCase(method);
+          vars["input"] = name_resolver_->GetImmutableClassName(method->input_type());
+          vars["output"] = GetOutput(method);
+          
+          if( AsyncService == 0 )
+            printer->Print(vars,
+              "  $output$ $name$($input$ req);");
+          else
+            printer->Print(vars,
+              "  java.util.concurrent.CompletableFuture<$output$> $name$($input$ req);");
+            
+          std::stringstream ss2;  
+          ss2 << method->options().unknown_fields().field(0).varint();  
+          std::string serviceId = ss2.str();
+          printer->Print("\n  static final public int $name$MsgId = $msgId$;\n","name", UnderscoresToCamelCase(method),"msgId", serviceId );
+    
+          printer->Print("\n");
+      }
+      
+      printer->Outdent();
+      printer->Print("}\n\n");
 }
 
 void ImmutableServiceGenerator::GenerateNewReflectiveServiceMethod(
